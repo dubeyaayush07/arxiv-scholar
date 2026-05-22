@@ -6,6 +6,8 @@ from configs import config
 from arxiv_scholar.download.arxiv_ingestion import ArxivUnifiedEngine
 from arxiv_scholar.ingestion.local import LocalDirectoryReader
 from arxiv_scholar.chunking.layout import LayoutAwareChunker
+from arxiv_scholar.embedding.st_embedder import SentenceTransformerEmbedder
+from arxiv_scholar.embedding.fastembed_embedder import FastEmbedEmbedder
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -13,7 +15,7 @@ logger = logging.getLogger(__name__)
 class PipelineOrchestrator:
     """
     Orchestrates the massive 1TB arXiv dataset ingestion.
-    Runs an infinite loop fetching batches, extracting text, chunking, and (eventually) embedding.
+    Runs an infinite loop fetching batches, extracting text, chunking, and embedding.
     """
     def __init__(self, download_dir: str, state_file: str):
         # Override config paths for sandboxing/trials
@@ -24,6 +26,18 @@ class PipelineOrchestrator:
         
         self.engine = ArxivUnifiedEngine()
         self.chunker = LayoutAwareChunker(max_chunk_size=1500)
+        
+        if config.EMBEDDING_BACKEND == "fastembed":
+            self.embedder = FastEmbedEmbedder(
+                model_name=config.EMBEDDING_MODEL,
+                batch_size=config.EMBEDDING_BATCH_SIZE,
+            )
+        else:
+            self.embedder = SentenceTransformerEmbedder(
+                model_name=config.EMBEDDING_MODEL,
+                device=config.EMBEDDING_DEVICE,
+                batch_size=config.EMBEDDING_BATCH_SIZE,
+            )
         
     def process_batch(self, batch_size: int = 50) -> bool:
         """Processes a single batch. Returns True if files were processed, False if caught up."""
@@ -40,19 +54,30 @@ class PipelineOrchestrator:
         reader = LocalDirectoryReader(directory_path=config.DOWNLOAD_DIR)
         
         total_chunks = 0
+        total_embedded = 0
         for document in reader.read():
             logger.info(f"Parsing and chunking document: {document.metadata.get('filename')}")
             # Chunking phase
             chunks = list(self.chunker.chunk(document))
             total_chunks += len(chunks)
             
-            # TODO: Embedding Phase
-            # BGE-M3 / NV-Embed-v2 logic goes here
+            # Embedding phase
+            if chunks:
+                texts = [chunk.content for chunk in chunks]
+                vectors = self.embedder.embed(texts)
+                total_embedded += len(vectors)
+                logger.info(
+                    f"  Embedded {len(vectors)} chunks "
+                    f"(dim={self.embedder.dimension})"
+                )
             
             # TODO: Storage Phase
-            # LanceDB / Qdrant insert logic goes here
+            # Upsert (chunks, vectors) into Qdrant
             
-        logger.info(f"Successfully processed {len(paths)} documents into {total_chunks} chunks.")
+        logger.info(
+            f"Successfully processed {len(paths)} documents "
+            f"into {total_chunks} chunks, {total_embedded} embeddings."
+        )
         
         # Cleanup phase prevents disk space exhaustion
         logger.info("Cleaning up batch from disk...")

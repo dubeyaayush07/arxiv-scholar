@@ -9,3 +9,9 @@ DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", str(BASE_DIR / "arxiv_batch"))
 STATE_FILE = os.getenv("STATE_FILE", "ingestion_state.json")
 GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "arxiv-dataset")
 GCS_BASE_PREFIX = os.getenv("GCS_BASE_PREFIX", "arxiv/arxiv/pdf/")
+
+# Embedding configuration
+EMBEDDING_BACKEND = os.getenv("EMBEDDING_BACKEND", "sentence-transformers")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "auto")
+EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
