@@ -1,19 +1,24 @@
 import os
 import json
-from arxiv_ingestion import ArxivUnifiedEngine
+
+# Set environment variables for the trial sandbox before importing config
+os.environ["DOWNLOAD_DIR"] = "trial_batch"
+os.environ["STATE_FILE"] = "trial_state.json"
+
+from arxiv_scholar.download.arxiv_ingestion import ArxivUnifiedEngine
 
 def run_local_trial():
     print("🚀 Starting local trial run...")
     
     # 1. Initialize the engine
     # This will scan the bucket's folders (takes about 1-2 seconds)
-    engine = ArxivUnifiedEngine(download_dir="trial_batch", state_file="trial_state.json")
+    engine = ArxivUnifiedEngine()
     
     # 2. Print out the folders it discovered just to verify it sees the dataset
     print(f"Total month folders discovered: {len(engine.all_month_folders)}")
     print(f"First few folders in line: {engine.all_month_folders[:5]}")
     
-    # 3. Download a micro-batch of exactly 2 papers
+    # 3. download a micro-batch of exactly 2 papers
     print("\nFetching a micro-batch of 2 PDFs...")
     paths = engine.get_batch(batch_size=2)
     

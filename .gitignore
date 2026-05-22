@@ -4,3 +4,6 @@ arxiv_batch/
 *_state.json
 __pycache__/
 .DS_Store
+.idea/
+.antigravitycli/
+.pytest_cache/

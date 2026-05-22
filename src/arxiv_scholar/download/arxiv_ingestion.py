@@ -1,18 +1,19 @@
 import os
 import json
 from google.cloud import storage
+from configs import config
 
 class ArxivUnifiedEngine:
-    def __init__(self, download_dir="arxiv_batch", state_file="ingestion_state.json"):
+    def __init__(self):
         """Initializes the engine, connects to GCS, and sets up state tracking."""
-        self.download_dir = download_dir
-        self.state_file = state_file
-        self.base_prefix = "arxiv/arxiv/pdf/"
+        self.download_dir = config.DOWNLOAD_DIR
+        self.state_file = config.STATE_FILE
+        self.base_prefix = config.GCS_BASE_PREFIX
         os.makedirs(self.download_dir, exist_ok=True)
         
         # Connect to GCS anonymously (Zero billing)
         self.client = storage.Client.create_anonymous_client()
-        self.bucket = self.client.bucket("arxiv-dataset")
+        self.bucket = self.client.bucket(config.GCS_BUCKET_NAME)
         
         # Discover all historical month folders and load the current state
         self.all_month_folders = self._get_all_month_prefixes()
