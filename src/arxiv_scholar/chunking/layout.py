@@ -15,12 +15,15 @@ from arxiv_scholar.chunking.sliding_window import SlidingWindowChunker
 
 logger = logging.getLogger(__name__)
 
-import torch
-# Apple Silicon MPS has a float64 bug in rt_detr_v2. 
-# We must monkey-patch torch to trick docling into running entirely on CPU.
-# This must happen at the module level BEFORE docling is ever imported.
-torch.backends.mps.is_available = lambda: False
-torch.backends.mps.is_built = lambda: False
+try:
+    import torch
+    # Apple Silicon MPS has a float64 bug in rt_detr_v2. 
+    # We must monkey-patch torch to trick docling into running entirely on CPU.
+    # This must happen at the module level BEFORE docling is ever imported.
+    torch.backends.mps.is_available = lambda: False
+    torch.backends.mps.is_built = lambda: False
+except ImportError:
+    pass
 
 
 class LayoutAwareChunker(BaseChunker):
@@ -76,7 +79,8 @@ class LayoutAwareChunker(BaseChunker):
     def chunk(self, document: Document) -> Generator[Chunk, None, None]:
         """Yields layout-aware chunks from the document's source file."""
         if not self._is_ready:
-            logger.warning("Docling not available. Yielding empty chunks.")
+            logger.warning("Docling not available. Falling back to sliding window chunking.")
+            yield from self.fallback_chunker.chunk(document)
             return
 
         source_path = document.metadata.get("source_path")
