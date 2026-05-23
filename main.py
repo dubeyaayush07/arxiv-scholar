@@ -8,6 +8,7 @@ from arxiv_scholar.ingestion.local import LocalDirectoryReader
 from arxiv_scholar.chunking.layout import LayoutAwareChunker
 from arxiv_scholar.embedding.st_embedder import SentenceTransformerEmbedder
 from arxiv_scholar.embedding.fastembed_embedder import FastEmbedEmbedder
+from arxiv_scholar.storage.qdrant_store import QdrantVectorStore
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -38,7 +39,15 @@ class PipelineOrchestrator:
                 device=config.EMBEDDING_DEVICE,
                 batch_size=config.EMBEDDING_BATCH_SIZE,
             )
-        
+
+        # Storage
+        self.store = QdrantVectorStore(
+            collection_name=config.QDRANT_COLLECTION,
+            host=config.QDRANT_HOST,
+            port=config.QDRANT_PORT,
+        )
+        self.store.ensure_collection(dimension=self.embedder.dimension)
+
     def process_batch(self, batch_size: int = 50) -> bool:
         """Processes a single batch. Returns True if files were processed, False if caught up."""
         logger.info(f"Fetching batch of size {batch_size}...")
@@ -70,10 +79,11 @@ class PipelineOrchestrator:
                     f"  Embedded {len(vectors)} chunks "
                     f"(dim={self.embedder.dimension})"
                 )
-            
-            # TODO: Storage Phase
-            # Upsert (chunks, vectors) into Qdrant
-            
+
+                # Storage phase — upsert into Qdrant
+                upserted = self.store.upsert(chunks, vectors)
+                logger.info(f"  Stored {upserted} points in Qdrant.")
+
         logger.info(
             f"Successfully processed {len(paths)} documents "
             f"into {total_chunks} chunks, {total_embedded} embeddings."

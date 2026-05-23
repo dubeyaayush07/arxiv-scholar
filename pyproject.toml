@@ -8,6 +8,7 @@ dependencies = [
     "ipykernel>=7.2.0",
     "pydantic>=2.13.4",
     "pypdf>=6.11.0",
+    "qdrant-client>=1.18.0",
     "sentence-transformers>=4.0.0",
 ]
 
@@ -15,3 +16,14 @@ dependencies = [
 dev = [
     "pytest>=9.0.3",
 ]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+

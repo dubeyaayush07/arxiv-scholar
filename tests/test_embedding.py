@@ -14,7 +14,7 @@ def test_base_embedder_cannot_be_instantiated() -> None:
 
 
 @patch("arxiv_scholar.embedding.st_embedder._resolve_device", return_value="cpu")
-@patch("arxiv_scholar.embedding.st_embedder.SentenceTransformer")
+@patch("sentence_transformers.SentenceTransformer")
 def test_st_embedder_embed(mock_st_class: MagicMock, mock_device: MagicMock) -> None:
     """Verifies SentenceTransformerEmbedder produces correctly shaped output."""
     # Setup mock model
@@ -43,7 +43,7 @@ def test_st_embedder_embed(mock_st_class: MagicMock, mock_device: MagicMock) -> 
 
 
 @patch("arxiv_scholar.embedding.st_embedder._resolve_device", return_value="cpu")
-@patch("arxiv_scholar.embedding.st_embedder.SentenceTransformer")
+@patch("sentence_transformers.SentenceTransformer")
 def test_st_embedder_empty_input(mock_st_class: MagicMock, mock_device: MagicMock) -> None:
     """Verifies that embedding an empty list returns an empty list."""
     mock_model = MagicMock()

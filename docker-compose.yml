@@ -1,0 +1,16 @@
+# Qdrant vector database for arxiv-scholar.
+# Start:  docker compose up -d
+# Stop:   docker compose down
+# Dashboard: http://localhost:6333/dashboard
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"   # REST + Dashboard
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  qdrant_data:
