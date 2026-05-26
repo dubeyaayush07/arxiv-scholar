@@ -136,7 +136,10 @@ class QdrantVectorStore(BaseVectorStore):
                 "id": hit.payload.get("chunk_id", str(hit.id)),
                 "score": hit.score,
                 "content": hit.payload.get("content", ""),
-                "metadata": hit.payload.get("metadata", {}),
+                "metadata": {
+                    **hit.payload.get("metadata", {}),
+                    "document_id": hit.payload.get("document_id", ""),
+                },
             }
             for hit in hits
         ]

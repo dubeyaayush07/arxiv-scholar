@@ -19,7 +19,7 @@ def test_st_embedder_embed(mock_st_class: MagicMock, mock_device: MagicMock) -> 
     """Verifies SentenceTransformerEmbedder produces correctly shaped output."""
     # Setup mock model
     mock_model = MagicMock()
-    mock_model.get_sentence_embedding_dimension.return_value = 1024
+    mock_model.get_embedding_dimension.return_value = 1024
     mock_model.encode.return_value = np.random.rand(3, 1024).astype(np.float32)
     mock_st_class.return_value = mock_model
 
@@ -47,7 +47,7 @@ def test_st_embedder_embed(mock_st_class: MagicMock, mock_device: MagicMock) -> 
 def test_st_embedder_empty_input(mock_st_class: MagicMock, mock_device: MagicMock) -> None:
     """Verifies that embedding an empty list returns an empty list."""
     mock_model = MagicMock()
-    mock_model.get_sentence_embedding_dimension.return_value = 1024
+    mock_model.get_embedding_dimension.return_value = 1024
     mock_st_class.return_value = mock_model
 
     from arxiv_scholar.embedding.st_embedder import SentenceTransformerEmbedder
