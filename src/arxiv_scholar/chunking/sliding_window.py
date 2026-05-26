@@ -71,6 +71,7 @@ class SlidingWindowChunker(BaseChunker):
                     document_id=document.id,
                     content=chunk_text,
                     metadata={
+                        **document.metadata,
                         "chunk_index": chunk_index,
                         "element_type": "Text",
                         "chunking_strategy": "sliding_window"

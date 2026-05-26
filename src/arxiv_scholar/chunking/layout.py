@@ -131,6 +131,7 @@ class LayoutAwareChunker(BaseChunker):
                         document_id=document.id,
                         content=text,
                         metadata={
+                            **document.metadata,
                             "chunk_index": chunk_index,
                             "element_type": "LayoutBlock",
                             "chunking_strategy": "layout_aware"

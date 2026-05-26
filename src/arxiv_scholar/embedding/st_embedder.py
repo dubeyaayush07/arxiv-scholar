@@ -90,7 +90,7 @@ class SentenceTransformerEmbedder(BaseEmbedder):
                 f"Loading embedding model '{model_name}' on device '{self._device}'..."
             )
             self._model = SentenceTransformer(model_name, device=self._device)
-            self._dimension = self._model.get_sentence_embedding_dimension()
+            self._dimension = self._model.get_embedding_dimension()
             logger.info(
                 f"Model loaded. Dimension: {self._dimension}, Device: {self._device}"
             )
