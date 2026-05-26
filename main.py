@@ -32,6 +32,7 @@ class PipelineOrchestrator:
             self.embedder = FastEmbedEmbedder(
                 model_name=config.EMBEDDING_MODEL,
                 batch_size=config.EMBEDDING_BATCH_SIZE,
+                device=config.EMBEDDING_DEVICE,
             )
         else:
             self.embedder = SentenceTransformerEmbedder(

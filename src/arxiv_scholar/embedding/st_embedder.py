@@ -14,10 +14,6 @@ from arxiv_scholar.embedding.base import BaseEmbedder
 
 logger = logging.getLogger(__name__)
 
-try:
-    from sentence_transformers import SentenceTransformer
-except ImportError:
-    SentenceTransformer = None
 
 
 def _resolve_device(requested: str = "auto") -> str:
@@ -88,20 +84,22 @@ class SentenceTransformerEmbedder(BaseEmbedder):
         self._batch_size = batch_size
         self._device = _resolve_device(device)
 
-        if SentenceTransformer is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+
+            logger.info(
+                f"Loading embedding model '{model_name}' on device '{self._device}'..."
+            )
+            self._model = SentenceTransformer(model_name, device=self._device)
+            self._dimension = self._model.get_embedding_dimension()
+            logger.info(
+                f"Model loaded. Dimension: {self._dimension}, Device: {self._device}"
+            )
+        except ImportError:
             raise ImportError(
                 "sentence-transformers is not installed. "
                 "Please run: pip install sentence-transformers"
             )
-
-        logger.info(
-            f"Loading embedding model '{model_name}' on device '{self._device}'..."
-        )
-        self._model = SentenceTransformer(model_name, device=self._device)
-        self._dimension = self._model.get_embedding_dimension()
-        logger.info(
-            f"Model loaded. Dimension: {self._dimension}, Device: {self._device}"
-        )
 
     def embed(self, texts: List[str]) -> List[List[float]]:
         """Encodes a list of texts into normalized dense vectors.
