@@ -9,7 +9,7 @@ import logging
 import re
 from pathlib import Path
 from typing import Any, Dict, Generator, Union, Optional
-import pypdf
+import fitz  # PyMuPDF
 
 from arxiv_scholar.ingestion.base import DocumentReader
 from arxiv_scholar.schema import Document
@@ -104,7 +104,7 @@ class LocalDirectoryReader(DocumentReader):
                 }
 
                 # Attempt to extract title
-                title = pdf_metadata.get("/Title")
+                title = pdf_metadata.get("/Title") or pdf_metadata.get("title")
                 if title:
                     # Clean title if it is a pypdf wrapper or string
                     title_str = str(title).strip()
@@ -142,17 +142,18 @@ class LocalDirectoryReader(DocumentReader):
         text_pages = []
         pdf_metadata = {}
 
-        # Opening the file using a context manager or passing string to PdfReader
-        # PdfReader handles file opening internally, but we can pass path directly
-        reader = pypdf.PdfReader(file_path)
-        
-        # Capture standard PDF metadata
-        if reader.metadata:
-            pdf_metadata = dict(reader.metadata)
+        try:
+            doc = fitz.open(file_path)
+            if doc.metadata:
+                pdf_metadata = dict(doc.metadata)
 
-        for page in reader.pages:
-            text = page.extract_text()
-            if text:
-                text_pages.append(text)
+            for page in doc:
+                text = page.get_text()
+                if text:
+                    text_pages.append(text)
+            
+            doc.close()
+        except Exception as e:
+            logger.error(f"Error reading PDF with fitz: {e}")
 
         return "\n".join(text_pages), pdf_metadata

@@ -7,7 +7,7 @@ DocumentReader interface and outlines how to stream PDF data from a cloud bucket
 import io
 import logging
 from typing import Generator, Optional
-import pypdf
+import fitz  # PyMuPDF
 
 from arxiv_scholar.ingestion.base import DocumentReader
 from arxiv_scholar.schema import Document
@@ -82,17 +82,19 @@ class GCSBucketReader(DocumentReader):
             try:
                 # Stream blob bytes directly into memory
                 blob_bytes = blob.download_as_bytes()
-                file_like = io.BytesIO(blob_bytes)
-
-                # Initialize pypdf reader
-                reader = pypdf.PdfReader(file_like)
+                
+                # Initialize PyMuPDF (fitz) reader from memory stream
+                doc = fitz.open("pdf", blob_bytes)
                 text_pages = []
-                for page in reader.pages:
-                    text = page.extract_text()
+                for page in doc:
+                    text = page.get_text()
                     if text:
                         text_pages.append(text)
-
+                
                 content = "\n".join(text_pages)
+                
+                pdf_metadata = doc.metadata or {}
+                doc.close()
 
                 # Calculate SHA-256 hash from blob md5 or download bytes
                 # GCS blob has a md5_hash attribute (in base64 format)
@@ -119,10 +121,9 @@ class GCSBucketReader(DocumentReader):
                 }
 
                 # Add pdf properties to metadata if available
-                if reader.metadata:
-                    title = reader.metadata.get("/Title")
-                    if title:
-                        metadata["title"] = str(title).strip()
+                title = pdf_metadata.get("/Title") or pdf_metadata.get("title")
+                if title:
+                    metadata["title"] = str(title).strip()
 
                 if "title" not in metadata:
                     metadata["title"] = blob.name.split("/")[-1].replace(".pdf", "")

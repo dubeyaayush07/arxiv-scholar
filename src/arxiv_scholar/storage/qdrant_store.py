@@ -164,6 +164,45 @@ class QdrantVectorStore(BaseVectorStore):
             for hit in hits
         ]
 
+    def hybrid_search(
+        self,
+        query_vector: List[float],
+        sparse_vector: Any,
+        top_k: int = 10,
+    ) -> List[Dict[str, Any]]:
+        from qdrant_client.models import Prefetch, FusionQuery, Fusion, SparseVector
+
+        hits = self._client.query_points(
+            collection_name=self.collection_name,
+            prefetch=[
+                Prefetch(
+                    query=query_vector,
+                    using="",
+                    limit=top_k,
+                ),
+                Prefetch(
+                    query=SparseVector(indices=sparse_vector.indices, values=sparse_vector.values),
+                    using="bm25",
+                    limit=top_k,
+                )
+            ],
+            query=FusionQuery(fusion=Fusion.RRF),
+            limit=top_k,
+        ).points
+
+        return [
+            {
+                "id": hit.payload.get("chunk_id", str(hit.id)),
+                "score": hit.score,
+                "content": hit.payload.get("content", ""),
+                "metadata": {
+                    **hit.payload.get("metadata", {}),
+                    "document_id": hit.payload.get("document_id", ""),
+                },
+            }
+            for hit in hits
+        ]
+
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------

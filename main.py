@@ -26,7 +26,7 @@ class PipelineOrchestrator:
         config.STATE_FILE = state_file
         
         self.engine = ArxivUnifiedEngine()
-        self.chunker = LayoutAwareChunker(max_chunk_size=1500)
+        self.chunker = LayoutAwareChunker(max_chunk_size=2000)
         
         if config.EMBEDDING_BACKEND == "fastembed":
             self.embedder = FastEmbedEmbedder(
