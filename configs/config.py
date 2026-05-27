@@ -12,7 +12,7 @@ GCS_BASE_PREFIX = os.getenv("GCS_BASE_PREFIX", "arxiv/arxiv/pdf/")
 
 # Embedding configuration
 EMBEDDING_BACKEND = os.getenv("EMBEDDING_BACKEND", "sentence-transformers")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
 EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
 EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "auto")
 
