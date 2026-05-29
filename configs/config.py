@@ -19,4 +19,4 @@ EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "auto")
 # Qdrant storage configuration
 QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
-QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "arxiv_chunks")
+QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "arxiv_papers")

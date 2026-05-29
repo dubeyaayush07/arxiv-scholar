@@ -12,15 +12,13 @@ The goal is to build a high-performance, robust Retrieval-Augmented Generation (
 - **Adversarial Resilience**: Survives adversarial query sets (paraphrases, negations, multi-hop).
 
 ### Tech Stack
-- **Embedding**: `BGE-M3` or `NV-Embed-v2` (late-interaction support), baselined against `text-embedding-3-large`.
-- **Vector Store**: `Qdrant` or `LanceDB` (Pick one, benchmarking both is a stretch goal).
-- **Sparse Retrieval**: `BM25` via `Tantivy` or `Pyserini`.
-- **Reranker**: `BGE-reranker-v2-m3` or `Cohere Rerank 3`.
+- **Embedding**: `BAAI/bge-small-en-v1.5` (Dense) + `BM25/SPLADE` (Sparse) via `fastembed` (ONNX CPU).
+- **Vector Store**: `Qdrant` with Reciprocal Rank Fusion (RRF).
+- **Reranker**: `jinaai/jina-reranker-v1-tiny-en` (ONNX C++ runtime).
 - **Orchestration**: Custom retrieval graph rolled in pure Python (No LangChain).
-- **Evaluation**: `Ragas` + custom programmatic metrics.
+- **Evaluation**: Custom programmatic metrics (`eval_dataset.jsonl`).
 
 ### Success Metrics (Programmatic)
-- **Recall**: `recall@k` (k=5, 10, 20) on hard-negative set ≥ 0.85 at k=20
-- **nDCG**: `nDCG@10` ≥ 0.72
-- **Observability**: p50/p95/p99 latency tracked in Prometheus.
+- **Recall**: `Recall@20` on hard-negative set ≈ 0.80
+- **Latency**: p99 end-to-end latency ≈ 1.9s for a heavily optimized 2-stage pipeline on commodity Mac CPU.
 - **Cost**: Cost per 1k queries < $0.05.

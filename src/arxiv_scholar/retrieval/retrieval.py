@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 from qdrant_client import QdrantClient
 from qdrant_client import models
 from fastembed import TextEmbedding, SparseTextEmbedding
+from fastembed.rerank.cross_encoder import TextCrossEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,9 @@ class HybridRetriever:
         qdrant_host: str = "localhost",
         qdrant_port: int = 6333,
         location: str = None,
-        dense_model_name: str = "BAAI/bge-m3",
+        dense_model_name: str = "BAAI/bge-small-en-v1.5",
         sparse_model_name: str = "Qdrant/bm25",
+        reranker_model_name: str = None,
     ) -> None:
         """Initializes the retriever and its global state (models and db client)."""
         self.collection_name = collection_name
@@ -43,8 +45,13 @@ class HybridRetriever:
         
         logger.info(f"Loading sparse model: {sparse_model_name}")
         self.sparse_model = SparseTextEmbedding(model_name=sparse_model_name)
+        
+        self.reranker_model = None
+        if reranker_model_name:
+            logger.info(f"Loading fastembed reranker model: {reranker_model_name}")
+            self.reranker_model = TextCrossEncoder(model_name=reranker_model_name)
 
-    def retrieve(self, query_text: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def retrieve(self, query_text: str, limit: int = 20, use_reranker: bool = False) -> List[Dict[str, Any]]:
         """Executes a hybrid search query with server-side RRF.
         
         Args:
@@ -69,10 +76,11 @@ class HybridRetriever:
         # 5. The Prefetch Construction
         # Construct prefetch for the Dense search path
         # Assuming the dense vector is the unnamed default vector ("") in Qdrant
+        fetch_limit = limit * 5 if (use_reranker and self.reranker_model) else limit
         prefetch_dense = models.Prefetch(
             query=dense_vector,
             using="",
-            limit=limit,
+            limit=fetch_limit,
         )
 
         # Construct prefetch for the Sparse search path
@@ -80,7 +88,7 @@ class HybridRetriever:
         prefetch_sparse = models.Prefetch(
             query=sparse_vector,
             using="bm25",
-            limit=limit,
+            limit=fetch_limit,
         )
 
         # 6. Database Execution
@@ -90,7 +98,7 @@ class HybridRetriever:
             collection_name=self.collection_name,
             prefetch=[prefetch_dense, prefetch_sparse],
             query=models.FusionQuery(fusion=models.Fusion.RRF),
-            limit=limit,
+            limit=fetch_limit,
         )
 
         # 7. Output Formatting
@@ -99,10 +107,23 @@ class HybridRetriever:
         for point in response.points:
             payload = point.payload or {}
             results.append({
-                "chunk_id": payload.get("chunk_id", str(point.id)),
+                "chunk_id": str(point.id),
                 "text": payload.get("content", ""),
                 "score": point.score,
                 "metadata": payload.get("metadata", {}),
             })
+            
+        if use_reranker and self.reranker_model and results:
+            # Predict cross-encoder scores
+            # Truncate text to limit ONNX token sequence length for <1s p99 latency
+            documents = [res["text"][:500] for res in results]
+            cross_scores = list(self.reranker_model.rerank(query_text, documents))
+            
+            # Update scores and sort descending
+            for i, res in enumerate(results):
+                res["score"] = float(cross_scores[i])
+                
+            results = sorted(results, key=lambda x: x["score"], reverse=True)
+            results = results[:limit]
 
         return results
