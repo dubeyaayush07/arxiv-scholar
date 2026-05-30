@@ -5,7 +5,8 @@ import logging
 import argparse
 import numpy as np
 from tqdm import tqdm
-from prometheus_client import start_http_server, Summary, Histogram
+from prometheus_client import start_http_server, Summary, Histogram, Counter
+import asyncio
 
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -15,9 +16,7 @@ spec = importlib.util.spec_from_file_location("local_config", config_path)
 config = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(config)
 
-from arxiv_scholar.embedding.fastembed_embedder import FastEmbedEmbedder, SparseBM25Embedder
-from qdrant_client import QdrantClient
-from qdrant_client.models import Prefetch, FusionQuery, Fusion, SparseVector
+from arxiv_scholar.retrieval.orchestrator import AdvancedRetriever
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -25,8 +24,7 @@ logger = logging.getLogger(__name__)
 # Prometheus Metrics
 RETRIEVAL_LATENCY = Summary('retrieval_latency_seconds', 'Time spent retrieving from Qdrant')
 RETRIEVAL_LATENCY_HIST = Histogram('retrieval_latency_histogram_seconds', 'Retrieval latency histogram', buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0])
-
-from arxiv_scholar.retrieval.retrieval import HybridRetriever
+QUERY_PATH_COUNTER = Counter('query_path_total', 'Distribution of query paths taken', ['path'])
 
 def calculate_ndcg(retrieved_ids, target_id, hard_negative_ids, k=10):
     dcg = 0.0
@@ -49,7 +47,7 @@ def calculate_ndcg(retrieved_ids, target_id, hard_negative_ids, k=10):
         
     return dcg / idcg if idcg > 0 else 0.0
 
-def run_evaluation(data_file: str, collection_name: str):
+async def run_evaluation(data_file: str, collection_name: str):
     logger.info(f"Loading eval dataset: {data_file}")
     if not os.path.exists(data_file):
         raise FileNotFoundError(f"Missing {data_file}. Did you run generate_eval_dataset.py?")
@@ -60,7 +58,7 @@ def run_evaluation(data_file: str, collection_name: str):
     # Filter out adversarial queries due to logical ground-truth mismatch
     queries = [q for q in queries if q.get("query_type") == "standard"]
         
-    retriever = HybridRetriever(
+    retriever = AdvancedRetriever(
         collection_name=collection_name, 
         qdrant_host=config.QDRANT_HOST, 
         qdrant_port=config.QDRANT_PORT,
@@ -86,10 +84,14 @@ def run_evaluation(data_file: str, collection_name: str):
             
             with RETRIEVAL_LATENCY.time():
                 start_t = time.perf_counter()
-                results = retriever.retrieve(query_text, limit=20, use_reranker=use_reranker)
+                results = await retriever.retrieve(query_text, limit=20, use_reranker=use_reranker)
                 end_t = time.perf_counter()
                 latency = end_t - start_t
                 RETRIEVAL_LATENCY_HIST.observe(latency)
+                
+            if results:
+                path = results[0].get("_query_path", "direct")
+                QUERY_PATH_COUNTER.labels(path=path).inc()
                 
             retrieved_ids = [str(res["chunk_id"]) for res in results]
             
@@ -129,7 +131,7 @@ def calculate_cost(latency_mean_ms):
     sec_per_1k = (latency_mean_ms / 1000.0) * 1000
     return sec_per_1k * cost_per_sec
 
-def main():
+async def main_async():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", default="data/eval_dataset.jsonl")
     parser.add_argument("--metrics-port", type=int, default=8000)
@@ -143,7 +145,7 @@ def main():
     results = []
     
     for coll in collections:
-        res_list = run_evaluation(args.data, coll)
+        res_list = await run_evaluation(args.data, coll)
         for res in res_list:
             res["Cost_per_1k"] = calculate_cost(res["Avg_Latency_ms"])
             results.append(res)
@@ -174,7 +176,7 @@ def main():
         
     # Sleep to allow prometheus scraper to hit the endpoint if desired
     logger.info("Benchmark complete. Serving metrics for 10 seconds...")
-    time.sleep(10)
+    await asyncio.sleep(10)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main_async())

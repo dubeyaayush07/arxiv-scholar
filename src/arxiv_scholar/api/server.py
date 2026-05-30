@@ -6,9 +6,9 @@ import asyncio
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
-from openai import AsyncOpenAI
+from arxiv_scholar.llm.service import LLMService
 
-from arxiv_scholar.retrieval.retrieval import HybridRetriever
+from arxiv_scholar.retrieval.orchestrator import Orchestrator
 from arxiv_scholar.api.schema import (
     QueryRequest, 
     SourceNode, 
@@ -32,22 +32,18 @@ app_state = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Initializing HybridRetriever with BGE Re-ranker...")
-    retriever = HybridRetriever(
+    logger.info("Initializing Orchestrator with ML Router and BGE Re-ranker...")
+    retriever = Orchestrator(
         collection_name="arxiv_papers",
         qdrant_host=QDRANT_HOST,
         qdrant_port=QDRANT_PORT,
         reranker_model_name="BAAI/bge-reranker-base"
     )
     
-    api_key = os.environ.get("OPENROUTER_API_KEY", "")
-    llm_client = AsyncOpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=api_key
-    ) if api_key else None
+    llm_service = LLMService()
     
     app_state["retriever"] = retriever
-    app_state["llm_client"] = llm_client
+    app_state["llm_service"] = llm_service
     
     yield
     
@@ -58,10 +54,11 @@ app = FastAPI(title="Arxiv Scholar RAG API", lifespan=lifespan)
 
 @app.post("/api/v1/query")
 async def query_endpoint(request: QueryRequest):
+    logger.info(f"Received query request: query='{request.query}', limit={request.limit}, rerank={request.use_reranker}")
     start_time = time.perf_counter()
     
     retriever = app_state.get("retriever")
-    llm_client = app_state.get("llm_client")
+    llm_service = app_state.get("llm_service")
     
     if not retriever:
         raise HTTPException(status_code=500, detail="Retriever not initialized")
@@ -69,13 +66,14 @@ async def query_endpoint(request: QueryRequest):
     async def _stream_response():
         try:
             # 1. Retrieve & Re-rank
-            # HybridRetriever is synchronous in main branch, so we wrap it in a thread
-            chunks = await asyncio.to_thread(
-                retriever.retrieve,
+            # Orchestrator is natively async, so we await it directly
+            logger.debug(f"Starting retrieval for query: '{request.query}'")
+            chunks = await retriever.retrieve(
                 request.query,
                 limit=request.limit,
                 use_reranker=request.use_reranker
             )
+            logger.debug(f"Retrieval completed. Fetched {len(chunks)} chunks.")
             
             # 2. Contextualize
             context_blocks = []
@@ -106,24 +104,9 @@ async def query_endpoint(request: QueryRequest):
             yield f"data: {meta_event.model_dump_json()}\n\n"
             
             # 3. LLM Synthesis Streaming
-            if llm_client and context_str:
-                prompt = f"""You are an academic research assistant. 
-Answer the user's query comprehensively based ONLY on the provided context chunks. 
-If the answer is not in the context, state that clearly. Cite your sources where applicable using the provided Source URL (e.g. [https://arxiv.org/abs/2010.05432]).
-
-CRITICAL: Return ONLY the final answer. Do NOT use conversational filler (e.g. "Based on the provided context..."). Start your answer immediately.
-
-Context:
-{context_str}
-
-Query: {request.query}
-"""
-                stream = await llm_client.chat.completions.create(
-                    model="anthropic/claude-3.5-haiku",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3,
-                    stream=True
-                )
+            if llm_service and llm_service.client and context_str:
+                logger.debug(f"Starting LLM stream synthesis for query: '{request.query}'")
+                stream = llm_service.stream_synthesis(request.query, context_str)
                 
                 # YIELD 2: Token Events
                 async for chunk in stream:
@@ -132,13 +115,16 @@ Query: {request.query}
                         token_event = StreamTokenEvent(content=content)
                         yield f"data: {token_event.model_dump_json()}\n\n"
                         
+                logger.debug(f"LLM stream synthesis completed for query: '{request.query}'")
+                        
             # YIELD 3: Done Event
             latency = (time.perf_counter() - start_time) * 1000
+            logger.info(f"Request completed successfully in {latency:.2f}ms")
             done_event = StreamDoneEvent(latency_ms=latency)
             yield f"data: {done_event.model_dump_json()}\n\n"
             
         except Exception as e:
-            logger.error(f"Error during retrieval: {e}")
+            logger.error(f"Error during retrieval for query '{request.query}': {e}", exc_info=True)
             yield f"data: {{\"type\": \"error\", \"detail\": \"{str(e)}\"}}\n\n"
             
     return StreamingResponse(_stream_response(), media_type="text/event-stream")
