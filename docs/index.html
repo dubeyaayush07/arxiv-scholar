@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArXiv Scholar — Open-Source Agentic Research Infrastructure</title>
+    <meta name="description" content="An open-source RAG pipeline that indexes academic papers from arXiv, enabling AI agents and researchers to retrieve precise, citation-filtered scientific knowledge.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #3b82f6;
+            --accent-dark: #2563eb;
+            --text: #334155;
+            --text-muted: #64748b;
+            --text-light: #94a3b8;
+            --bg: #ffffff;
+            --bg-offset: #f8fafc;
+            --bg-dark: #0f172a;
+            --border: #e2e8f0;
+            --radius: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.7;
+            color: var(--text);
+            background: var(--bg);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* ── Navbar ── */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .navbar .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 64px;
+        }
+
+        .logo {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 0.85rem;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover { color: var(--primary); }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.55rem 1.25rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1e293b;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 1.5px solid var(--border);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            background: var(--bg-offset);
+        }
+
+        /* ── Hero ── */
+        .hero {
+            padding: 10rem 0 6rem;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 1rem;
+            background: #eff6ff;
+            color: var(--accent-dark);
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            border: 1px solid #bfdbfe;
+        }
+
+        .hero-badge .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .hero h1 {
+            font-size: 3.75rem;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+            max-width: 800px;
+            margin: 0 auto 1.5rem;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 2.5rem;
+        }
+
+        .hero-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .github-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* ── Stats Bar ── */
+        .stats-bar {
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            padding: 2.5rem 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            text-align: center;
+        }
+
+        .stat-item {
+            position: relative;
+        }
+
+        .stat-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 10%;
+            height: 80%;
+            width: 1px;
+            background: var(--border);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-top: 0.25rem;
+        }
+
+        /* ── Sections ── */
+        .section {
+            padding: 6rem 0;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .section-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            margin-bottom: 0.75rem;
+        }
+
+        .section-title {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.025em;
+            margin-bottom: 1rem;
+        }
+
+        .section-desc {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* ── Motivation ── */
+        .motivation-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .motivation-card {
+            padding: 2rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            transition: all 0.25s;
+        }
+
+        .motivation-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 4px 24px rgba(59, 130, 246, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .motivation-icon {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .motivation-card h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .motivation-card p {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        /* ── Architecture ── */
+        .architecture {
+            background: var(--bg-offset);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .arch-pipeline {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+            position: relative;
+            margin-top: 1rem;
+        }
+
+        .arch-step {
+            text-align: center;
+            padding: 2rem 1.5rem;
+            position: relative;
+        }
+
+        .arch-step:not(:last-child)::after {
+            content: '→';
+            position: absolute;
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            color: var(--text-light);
+            font-weight: 300;
+        }
+
+        .arch-step-num {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--primary);
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .arch-step h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .arch-step p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        /* ── Timeline ── */
+        .timeline-wrapper {
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        .timeline-item {
+            display: flex;
+            gap: 2rem;
+            padding-bottom: 2.5rem;
+            position: relative;
+        }
+
+        .timeline-item:last-child { padding-bottom: 0; }
+
+        .timeline-marker {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .timeline-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 3px solid #dbeafe;
+            flex-shrink: 0;
+        }
+
+        .timeline-dot.completed {
+            background: #22c55e;
+            border-color: #dcfce7;
+        }
+
+        .timeline-dot.upcoming {
+            background: var(--text-light);
+            border-color: #e2e8f0;
+        }
+
+        .timeline-line {
+            width: 2px;
+            flex: 1;
+            background: var(--border);
+            margin-top: 0.5rem;
+        }
+
+        .timeline-item:last-child .timeline-line {
+            display: none;
+        }
+
+        .timeline-content h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.15rem;
+        }
+
+        .timeline-date {
+            font-size: 0.8rem;
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .timeline-content p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .timeline-tag {
+            display: inline-block;
+            padding: 0.15rem 0.6rem;
+            border-radius: 100px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+
+        .tag-done {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .tag-active {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .tag-soon {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        /* ── Team ── */
+        .team {
+            background: var(--bg-offset);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .team-grid {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+        }
+
+        .team-card {
+            text-align: center;
+            padding: 2.5rem 2rem;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            min-width: 260px;
+            transition: all 0.25s;
+        }
+
+        .team-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        }
+
+        .team-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 1.5rem;
+            margin: 0 auto 1.25rem;
+        }
+
+        .team-card h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .team-role {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .linkedin-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            text-decoration: none;
+            color: #0a66c2;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+
+        .linkedin-link:hover { opacity: 0.7; }
+
+        .linkedin-icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            background: var(--bg-dark);
+            color: #cbd5e1;
+            padding: 4rem 0;
+        }
+
+        .footer-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-logo {
+            font-size: 1rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -0.5px;
+        }
+
+        .footer-links a {
+            text-decoration: none;
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-left: 1.5rem;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover { color: white; }
+
+        .footer-copy {
+            text-align: center;
+            margin-top: 2.5rem;
+            padding-top: 2rem;
+            border-top: 1px solid #1e293b;
+            font-size: 0.8rem;
+            color: #475569;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .hero-buttons { flex-direction: column; align-items: center; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 2rem; }
+            .stat-item:not(:last-child)::after { display: none; }
+            .motivation-grid { grid-template-columns: 1fr; }
+            .arch-pipeline { grid-template-columns: 1fr; }
+            .arch-step:not(:last-child)::after { content: '↓'; right: auto; bottom: -8px; top: auto; transform: none; left: 50%; }
+            .team-grid { flex-direction: column; align-items: center; }
+            .nav-links a:not(.btn) { display: none; }
+            .footer-inner { flex-direction: column; gap: 1.5rem; text-align: center; }
+            .footer-links a { margin: 0 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="#" class="logo">
+                <div class="logo-icon">A</div>
+                ArXiv Scholar
+            </a>
+            <div class="nav-links">
+                <a href="#motivation">Motivation</a>
+                <a href="#architecture">Architecture</a>
+                <a href="#roadmap">Roadmap</a>
+                <a href="#team">Team</a>
+                <a href="https://github.com/dubeyaayush07/arxiv-scholar" target="_blank" class="btn btn-primary">
+                    <svg class="github-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-badge">
+                <span class="dot"></span>
+                Ingestion pipeline in progress
+            </div>
+            <h1>Precise retrieval for the world's scientific knowledge.</h1>
+            <p>An open-source RAG infrastructure that indexes arXiv at scale, enabling researchers and AI agents to retrieve high-signal academic literature without hallucinations.</p>
+            <div class="hero-buttons">
+                <a href="https://github.com/dubeyaayush07/arxiv-scholar" target="_blank" class="btn btn-primary">
+                    <svg class="github-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                    View Repository
+                </a>
+                <a href="#architecture" class="btn btn-outline">How It Works</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats-bar">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number">250K+</div>
+                    <div class="stat-label">Target Documents (CS)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">915K+</div>
+                    <div class="stat-label">Target Documents (Full arXiv)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">&lt;250ms</div>
+                    <div class="stat-label">p99 Query Latency</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">MIT</div>
+                    <div class="stat-label">Open-Source License</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Motivation -->
+    <section id="motivation" class="section">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-label">Why This Exists</div>
+                <h2 class="section-title">Bridging the Knowledge Gap</h2>
+                <p class="section-desc">LLMs hallucinate when asked about cutting-edge research. We solve this with a rigorously engineered, citation-filtered retrieval pipeline.</p>
+            </div>
+            <div class="motivation-grid">
+                <div class="motivation-card">
+                    <div class="motivation-icon">🎯</div>
+                    <h3>High-Signal Filtering</h3>
+                    <p>We exclude papers with 5 or fewer citations, removing ~70% of uncited preprints. What remains is a peer-validated, dense knowledge base optimized for retrieval quality.</p>
+                </div>
+                <div class="motivation-card">
+                    <div class="motivation-icon">🔄</div>
+                    <h3>Live Synchronization</h3>
+                    <p>arXiv publishes ~1,000 new papers daily. Our automated pipeline continuously ingests, parses, embeds, and indexes new publications as they appear.</p>
+                </div>
+                <div class="motivation-card">
+                    <div class="motivation-icon">🤖</div>
+                    <h3>Agentic Research</h3>
+                    <p>Autonomous AI agents can independently query and synthesize literature through our API, accelerating automated scientific problem-solving and discovery workflows.</p>
+                </div>
+                <div class="motivation-card">
+                    <div class="motivation-icon">🛡️</div>
+                    <h3>Hallucination Prevention</h3>
+                    <p>Every response is grounded in real, cited academic work. No fabricated references, no outdated training cutoffs — just verified scientific knowledge.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture -->
+    <section id="architecture" class="section architecture">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-label">Under the Hood</div>
+                <h2 class="section-title">Retrieval Architecture</h2>
+                <p class="section-desc">A multi-stage pipeline combining hybrid vector search, intelligent query routing, and LLM-powered decomposition.</p>
+            </div>
+            <div class="arch-pipeline">
+                <div class="arch-step">
+                    <div class="arch-step-num">1</div>
+                    <h4>Query Routing</h4>
+                    <p>Fast NLP-based router classifies incoming queries as Direct, Decompose, or HyDE in &lt;1ms.</p>
+                </div>
+                <div class="arch-step">
+                    <div class="arch-step-num">2</div>
+                    <h4>LLM Decomposition</h4>
+                    <p>Complex queries are split into atomic sub-queries with metadata filters extracted via structured JSON.</p>
+                </div>
+                <div class="arch-step">
+                    <div class="arch-step-num">3</div>
+                    <h4>Hybrid Search</h4>
+                    <p>Dense embeddings (BGE) and sparse retrieval (BM25) are fused using Reciprocal Rank Fusion on Qdrant.</p>
+                </div>
+                <div class="arch-step">
+                    <div class="arch-step-num">4</div>
+                    <h4>Filtered Results</h4>
+                    <p>Metadata constraints are applied natively at the database level via Qdrant Prefetch filters.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section id="roadmap" class="section">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-label">Progress</div>
+                <h2 class="section-title">Project Roadmap</h2>
+                <p class="section-desc">Where we are today, and where we are headed.</p>
+            </div>
+            <div class="timeline-wrapper">
+                <div class="timeline-item">
+                    <div class="timeline-marker">
+                        <div class="timeline-dot completed"></div>
+                        <div class="timeline-line"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <h4>Core RAG Pipeline <span class="timeline-tag tag-done">Complete</span></h4>
+                        <div class="timeline-date">May 2026</div>
+                        <p>Hybrid search (dense + sparse), Reciprocal Rank Fusion, Qdrant vector store integration, and end-to-end ingestion pipeline built and tested.</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-marker">
+                        <div class="timeline-dot completed"></div>
+                        <div class="timeline-line"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <h4>Advanced Query Orchestrator <span class="timeline-tag tag-done">Complete</span></h4>
+                        <div class="timeline-date">May 2026</div>
+                        <p>Intelligent query routing (Direct / Decompose / HyDE), LLM-based query decomposition, and metadata filter extraction via structured JSON output.</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-marker">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-line"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <h4>Initial Ingestion Run <span class="timeline-tag tag-active">In Progress</span></h4>
+                        <div class="timeline-date">June 2026</div>
+                        <p>Large-scale ingestion of 250,000+ citation-filtered CS papers from arXiv using GPU-accelerated batch embedding with the chunk pooling architecture.</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-marker">
+                        <div class="timeline-dot upcoming"></div>
+                        <div class="timeline-line"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <h4>Public API Release <span class="timeline-tag tag-soon">Coming Soon</span></h4>
+                        <div class="timeline-date">Q3 2026</div>
+                        <p>FastAPI-based streaming endpoint exposing the full retrieval pipeline. Enables developers and AI agents worldwide to query peer-validated scientific literature on-demand.</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-marker">
+                        <div class="timeline-dot upcoming"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <h4>Full arXiv Coverage <span class="timeline-tag tag-soon">Planned</span></h4>
+                        <div class="timeline-date">Q4 2026</div>
+                        <p>Expand ingestion to 915,000+ high-impact papers across all arXiv domains — Physics, Mathematics, Biology, Statistics, and more.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Team -->
+    <section id="team" class="section team">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-label">The People</div>
+                <h2 class="section-title">Built By</h2>
+            </div>
+            <div class="team-grid">
+                <div class="team-card">
+                    <div class="team-avatar">AD</div>
+                    <h3>Ayush Dubey</h3>
+                    <div class="team-role">Co-founder & Engineer</div>
+                    <a href="https://www.linkedin.com/in/ayush-dubey-a33156157/" target="_blank" class="linkedin-link">
+                        <svg class="linkedin-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                        LinkedIn
+                    </a>
+                </div>
+                <div class="team-card">
+                    <div class="team-avatar">TD</div>
+                    <h3>Trinetra Devkatte</h3>
+                    <div class="team-role">Co-founder & Engineer</div>
+                    <a href="https://www.linkedin.com/in/trinetra-devkatte-0a792413a/" target="_blank" class="linkedin-link">
+                        <svg class="linkedin-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                        LinkedIn
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-inner">
+                <div class="footer-logo">ArXiv Scholar</div>
+                <div class="footer-links">
+                    <a href="https://github.com/dubeyaayush07/arxiv-scholar" target="_blank">GitHub</a>
+                    <a href="#motivation">About</a>
+                    <a href="#roadmap">Roadmap</a>
+                    <a href="#team">Team</a>
+                </div>
+            </div>
+            <div class="footer-copy">
+                &copy; 2026 ArXiv Scholar. Open-source under the MIT License.
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
